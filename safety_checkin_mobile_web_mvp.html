@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>報平安 Check-in</title>
+  <style>
+    :root {
+      --bg: #f4f7f9;
+      --card: #ffffff;
+      --main: #2f6f73;
+      --main-dark: #24575a;
+      --danger: #c0392b;
+      --warning: #d68910;
+      --safe: #1e8449;
+      --text: #1f2933;
+      --muted: #6b7280;
+      --border: #d9e2e7;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .app {
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    header {
+      text-align: center;
+      padding: 20px 0 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      color: var(--main-dark);
+    }
+
+    .subtitle {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 22px;
+      padding: 20px;
+      margin: 16px 0;
+      box-shadow: 0 8px 28px rgba(31, 41, 51, 0.08);
+      border: 1px solid var(--border);
+    }
+
+    .status {
+      text-align: center;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 14px;
+      background: #e8f5ee;
+      color: var(--safe);
+    }
+
+    .status-badge.warning {
+      background: #fff4df;
+      color: var(--warning);
+    }
+
+    .status-badge.danger {
+      background: #fdecea;
+      color: var(--danger);
+    }
+
+    .big-button {
+      width: 100%;
+      min-height: 150px;
+      border: none;
+      border-radius: 28px;
+      background: var(--main);
+      color: white;
+      font-size: 32px;
+      font-weight: 800;
+      margin: 22px 0 12px;
+      box-shadow: 0 10px 24px rgba(47, 111, 115, 0.28);
+      cursor: pointer;
+    }
+
+    .big-button:active {
+      transform: scale(0.98);
+      background: var(--main-dark);
+    }
+
+    .help-button {
+      width: 100%;
+      padding: 16px;
+      border: 2px solid var(--danger);
+      color: var(--danger);
+      background: white;
+      border-radius: 16px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #eef2f4;
+      font-size: 15px;
+    }
+
+    .row:last-child {
+      border-bottom: none;
+    }
+
+    .label {
+      color: var(--muted);
+    }
+
+    .value {
+      text-align: right;
+      font-weight: 600;
+    }
+
+    label {
+      display: block;
+      margin: 14px 0 6px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 13px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      font-size: 16px;
+      background: white;
+    }
+
+    .small-button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 16px;
+      border: none;
+      background: #e5eff0;
+      color: var(--main-dark);
+      border-radius: 14px;
+      font-weight: 800;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .note {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-top: 10px;
+    }
+
+    .log {
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--muted);
+      max-height: 160px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <h1>報平安</h1>
+      <div class="subtitle">定時確認安全，逾時通知緊急聯絡人</div>
+    </header>
+
+    <section class="card status">
+      <div id="statusBadge" class="status-badge">安全</div>
+      <button class="big-button" onclick="checkIn()">我安全</button>
+      <button class="help-button" onclick="sendHelpAlert()">我需要幫助</button>
+      <p class="note">按「我安全」後，系統會記錄時間及位置。正式版本可自動發 Email / SMS / WhatsApp 給聯絡人。</p>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <div class="label">最後報平安</div>
+        <div id="lastCheckin" class="value">尚未報平安</div>
+      </div>
+      <div class="row">
+        <div class="label">最後位置</div>
+        <div id="lastLocation" class="value">未取得</div>
+      </div>
+      <div class="row">
+        <div class="label">距離下次逾時</div>
+        <div id="timeLeft" class="value">未啟動</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>設定</h2>
+
+      <label for="userName">使用者名稱</label>
+      <input id="userName" placeholder="例如：媽媽 / John / 外勤員工 A" />
+
+      <label for="contactName">緊急聯絡人</label>
+      <input id="contactName" placeholder="例如：女兒 / 主管 / 朋友" />
+
+      <label for="contactEmail">聯絡人 Email</label>
+      <input id="contactEmail" type="email" placeholder="example@email.com" />
+
+      <label for="intervalMinutes">逾時時間</label>
+      <select id="intervalMinutes">
+        <option value="30">30 分鐘</option>
+        <option value="60">1 小時</option>
+        <option value="120">2 小時</option>
+        <option value="240">4 小時</option>
+        <option value="720">12 小時</option>
+        <option value="1440">24 小時</option>
+      </select>
+
+      <button class="small-button" onclick="saveSettings()">儲存設定</button>
+      <p class="note">這個原型會把資料存在本機瀏覽器。正式版本需要後端資料庫和通知服務。</p>
+    </section>
+
+    <section class="card">
+      <h2>紀錄</h2>
+      <div id="log" class="log">暫時未有紀錄。</div>
+    </section>
+  </main>
+
+  <script>
+    const STORAGE_KEY = "safetyCheckinMVP";
+    let timer = null;
+
+    function loadState() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {
+        userName: "",
+        contactName: "",
+        contactEmail: "",
+        intervalMinutes: 60,
+        lastCheckinAt: null,
+        lastLocation: null,
+        logs: []
+      };
+    }
+
+    function saveState(state) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function formatTime(iso) {
+      if (!iso) return "尚未報平安";
+      return new Date(iso).toLocaleString("zh-HK", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+
+    function addLog(message) {
+      const state = loadState();
+      const time = new Date().toLocaleString("zh-HK");
+      state.logs.unshift(`${time}｜${message}`);
+      state.logs = state.logs.slice(0, 20);
+      saveState(state);
+      render();
+    }
+
+    function saveSettings() {
+      const state = loadState();
+      state.userName = document.getElementById("userName").value.trim();
+      state.contactName = document.getElementById("contactName").value.trim();
+      state.contactEmail = document.getElementById("contactEmail").value.trim();
+      state.intervalMinutes = Number(document.getElementById("intervalMinutes").value);
+      saveState(state);
+      addLog("設定已儲存");
+    }
+
+    function checkIn() {
+      const state = loadState();
+      state.lastCheckinAt = new Date().toISOString();
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            state.lastLocation = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+              accuracy: position.coords.accuracy
+            };
+            saveState(state);
+            addLog("已報平安，並成功取得位置");
+          },
+          () => {
+            saveState(state);
+            addLog("已報平安，但未能取得位置");
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+        );
+      } else {
+        saveState(state);
+        addLog("已報平安，但瀏覽器不支援定位");
+      }
+    }
+
+    function sendHelpAlert() {
+      const state = loadState();
+      const name = state.userName || "使用者";
+      const contact = state.contactName || "緊急聯絡人";
+      const locationText = state.lastLocation
+        ? `https://maps.google.com/?q=${state.lastLocation.lat},${state.lastLocation.lng}`
+        : "未有位置資料";
+
+      addLog(`緊急求助：系統應通知 ${contact}`);
+
+      alert(
+        `示範通知內容：\n\n${name} 按下「我需要幫助」。\n最後位置：${locationText}\n\n正式版本會即時發送 Email / SMS / WhatsApp。`
+      );
+    }
+
+    function checkTimeout() {
+      const state = loadState();
+      const badge = document.getElementById("statusBadge");
+      const timeLeftEl = document.getElementById("timeLeft");
+
+      if (!state.lastCheckinAt) {
+        badge.textContent = "未啟動";
+        badge.className = "status-badge warning";
+        timeLeftEl.textContent = "請先報平安";
+        return;
+      }
+
+      const last = new Date(state.lastCheckinAt).getTime();
+      const deadline = last + state.intervalMinutes * 60 * 1000;
+      const diff = deadline - Date.now();
+
+      if (diff <= 0) {
+        badge.textContent = "逾時未回應";
+        badge.className = "status-badge danger";
+        timeLeftEl.textContent = "已逾時";
+      } else {
+        badge.textContent = "安全";
+        badge.className = "status-badge";
+        const minutes = Math.ceil(diff / 60000);
+        timeLeftEl.textContent = `${minutes} 分鐘`;
+      }
+    }
+
+    function render() {
+      const state = loadState();
+
+      document.getElementById("userName").value = state.userName || "";
+      document.getElementById("contactName").value = state.contactName || "";
+      document.getElementById("contactEmail").value = state.contactEmail || "";
+      document.getElementById("intervalMinutes").value = String(state.intervalMinutes || 60);
+
+      document.getElementById("lastCheckin").textContent = formatTime(state.lastCheckinAt);
+
+      if (state.lastLocation) {
+        const url = `https://maps.google.com/?q=${state.lastLocation.lat},${state.lastLocation.lng}`;
+        document.getElementById("lastLocation").innerHTML = `<a href="${url}" target="_blank">查看地圖</a>`;
+      } else {
+        document.getElementById("lastLocation").textContent = "未取得";
+      }
+
+      const logs = state.logs || [];
+      document.getElementById("log").innerHTML = logs.length
+        ? logs.map(item => `<div>${item}</div>`).join("")
+        : "暫時未有紀錄。";
+
+      checkTimeout();
+    }
+
+    render();
+    timer = setInterval(checkTimeout, 10000);
+  </script>
+</body>
+</html>
